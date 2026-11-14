@@ -161,6 +161,10 @@ func (c client) post(ctx context.Context, path string, body map[string]any, out 
 
 	resp, err := c.opts.httpClient.Do(req)
 	if err != nil {
+		// A timeout or cancellation stays detectable with errors.Is; its text holds no key
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fmt.Errorf("request failed: %w", ctxErr)
+		}
 		// Rebuilt without wrapping so nothing but redacted text escapes
 		return errors.New(c.redact(fmt.Sprintf("request failed: %v", err)))
 	}

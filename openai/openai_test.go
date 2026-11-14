@@ -282,3 +282,24 @@ func TestEmbed(t *testing.T) {
 		})
 	}
 }
+
+func TestGeneratorTimeoutIsDetectable(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	defer srv.Close()
+	defer close(release) // runs first: frees the handler so Close doesn't wait
+
+	gen := NewGenerator("m", WithBaseURL(srv.URL), WithAPIKey("test-key-not-real-123"), WithTimeout(50*time.Millisecond))
+	_, err := gen.StructuredGenerate(context.Background(), "p", map[string]interface{}{"type": "object"})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("want context.DeadlineExceeded in chain, got %v", err)
+	}
+	if strings.Contains(err.Error(), "test-key-not-real-123") {
+		t.Fatalf("error leaks the key: %v", err)
+	}
+}
