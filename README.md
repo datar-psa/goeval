@@ -120,6 +120,7 @@ Fast, rule-based scorers that don't require LLMs.
 | Scorer     | Description                                 |
 |------------|---------------------------------------------|
 | ExactMatch | Simple equality (configurable case/whitespace) |
+| ToolCalls  | Checks the model's tool-call trace: expected, required, forbidden, order, arguments, max calls |
 
 ### Embedding Evaluations
 
@@ -231,6 +232,36 @@ res := exactMatch.Score(ctx, goeval.ScoreInputs{
 })
 // res.Score = 1.0 for exact match (case-insensitive)
 ```
+
+### 6) Tool-Call Correctness (Heuristic)
+
+Check which tools an agent called, with what arguments, from `ScoreInputs.ToolCalls` (no LLM involved).
+
+```go
+scorer := goeval.NewHeuristic().ToolCalls(goeval.ToolCallsOptions{
+    Required:  []string{"get_holdings"},     // must be called, any arguments
+    Forbidden: []string{"place_order"},      // any call scores 0
+    MaxCalls:  4,                            // more calls than this scores 0
+    Ordered:   true,                         // ExpectedToolCalls must appear in this order
+    Args:      goeval.ToolArgsSubset,        // default; also ToolArgsExact, ToolArgsIgnore
+    // ArgsMatcher: func(expected, actual map[string]any) bool { ... }, // replaces Args
+    // NoToolCalls: true,                    // refusal cases: the trace must be empty
+})
+
+res := scorer.Score(ctx, goeval.ScoreInputs{
+    ToolCalls: []goeval.ToolCall{
+        {Name: "get_holdings", Arguments: json.RawMessage(`{"account":"main","limit":10}`)},
+    },
+    ExpectedToolCalls: []goeval.ToolCall{
+        {Name: "get_holdings", Arguments: json.RawMessage(`{"account":"main"}`)},
+    },
+})
+// res.Score = 1.0. Otherwise the fraction of expected calls found; a forbidden call,
+// a call under NoToolCalls, or exceeding MaxCalls scores 0.
+// res.Metadata["misses"] and ["violations"] explain each problem.
+```
+
+With nothing to check (no expected calls, `Required`, `Forbidden`, `MaxCalls` or `NoToolCalls`) the scorer returns `ErrNoExpectedValue`.
 
 ## Design Philosophy
 

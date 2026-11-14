@@ -188,3 +188,18 @@ type ExactMatchOptions = heuristic.ExactMatchOptions
 func (h *Heuristic) ExactMatch(opts ExactMatchOptions) api.Scorer {
 	return heuristic.ExactMatch(opts)
 }
+
+type ToolCallsOptions = heuristic.ToolCallsOptions
+type ToolArgsMode = heuristic.ToolArgsMode
+
+const (
+	ToolArgsSubset = heuristic.ToolArgsSubset
+	ToolArgsExact  = heuristic.ToolArgsExact
+	ToolArgsIgnore = heuristic.ToolArgsIgnore
+)
+
+// ToolCalls returns a scorer that checks ScoreInputs.ToolCalls against expected, required,
+// forbidden and maximum calls, with optional ordering and argument matching.
+func (h *Heuristic) ToolCalls(opts ToolCallsOptions) api.Scorer {
+	return heuristic.ToolCalls(opts)
+}
