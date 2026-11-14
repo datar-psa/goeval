@@ -4,6 +4,7 @@ import (
 	"github.com/datar-psa/goeval/api"
 )
 
+type ToolCall = api.ToolCall
 type LLMGenerator = api.LLMGenerator
 type Embedder = api.Embedder
 type ModerationProvider = api.ModerationProvider

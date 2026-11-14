@@ -15,6 +15,17 @@ A Go library for fast, automated evaluation of Large Language Model (LLM) output
 All scorers follow a simple design pattern:
 - **output**: The actual response from your model
 - **expected**: The expected/reference response (optional for some scorers)
+- **tool calls** (optional): `ScoreInputs.ToolCalls` is the ordered trace of tool calls the model made and `ScoreInputs.ExpectedToolCalls` the calls it should have made. Each `api.ToolCall` has a `Name`, `Arguments` (a `json.RawMessage`, so the trace keeps exactly what the model sent) and an optional `Result`. Existing fields are unchanged; these two are optional and ignored by scorers that don't use them.
+
+```go
+in := goeval.ScoreInputs{
+    ToolCalls: []goeval.ToolCall{
+        {Name: "get_holdings", Arguments: json.RawMessage(`{"account":"main"}`)},
+    },
+    ExpectedToolCalls: []goeval.ToolCall{{Name: "get_holdings"}},
+}
+args, err := in.ToolCalls[0].DecodeArguments() // map[string]any{"account": "main"}
+```
 
 The scorer compares `output` against `expected` and returns a score between 0.0 and 1.0, where 1.0 is the best possible score.
 

@@ -1,6 +1,9 @@
 package api
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 // LLMGenerator is an interface for generating text using an LLM
 // This interface must be implemented by library consumers
@@ -72,16 +75,52 @@ type Score struct {
 	Error error
 }
 
+// ToolCall is one tool (function) call made by a model, as recorded in a trace.
+// It is also used to describe an expected call in ScoreInputs.ExpectedToolCalls.
+type ToolCall struct {
+	// Name is the tool's name
+	Name string `json:"name"`
+	// Arguments is the call's arguments as a JSON value, normally an object.
+	// It is json.RawMessage rather than map[string]any so the trace keeps exactly what the
+	// model sent (no float64 rounding of large integers, key order and invalid JSON survive)
+	// and can be copied straight from a provider response; use DecodeArguments for a map.
+	// Empty means no arguments (for an expected call: do not check them).
+	Arguments json.RawMessage `json:"arguments,omitempty"`
+	// Result is the tool's result, optional and not used by the built-in scorers
+	Result json.RawMessage `json:"result,omitempty"`
+}
+
+// DecodeArguments decodes Arguments as a JSON object.
+// Empty Arguments and JSON null decode to an empty map.
+func (c ToolCall) DecodeArguments() (map[string]any, error) {
+	if len(c.Arguments) == 0 {
+		return map[string]any{}, nil
+	}
+	var args map[string]any
+	if err := json.Unmarshal(c.Arguments, &args); err != nil {
+		return nil, err
+	}
+	if args == nil {
+		args = map[string]any{}
+	}
+	return args, nil
+}
+
 // ScoreInputs carries inputs for scoring across different scorers.
 //
 // Fields usage conventions:
 // - Output:   the actual output produced by the model (required for most scorers)
 // - Expected: the reference/expected output (optional depending on scorer)
 // - Input:    the original prompt/context/question given to the model (optional)
+// - ToolCalls: the tool calls the model made, in order (optional, used by tool-call scorers)
+// - ExpectedToolCalls: the calls the model should have made (optional, used by tool-call scorers)
 type ScoreInputs struct {
 	Output   string
 	Expected string
 	Input    string
+
+	ToolCalls         []ToolCall
+	ExpectedToolCalls []ToolCall
 }
 
 // Scorer evaluates the quality of an output
