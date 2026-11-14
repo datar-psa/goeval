@@ -8,7 +8,7 @@ A Go library for fast, automated evaluation of Large Language Model (LLM) output
 - LLM-as-a-judge evaluators: factuality, tonality, and moderation
 - Heuristic and embedding-based evaluators for speed and semantics
 - Structured outputs from LLM judges for debuggability (choices, confidences, evidence)
-- Support for Google Vertex AI (Gemini) via a pluggable generator/provider (more providers planned)
+- Support for Google Vertex AI (Gemini) and any OpenAI-compatible endpoint (OpenAI, OpenRouter, Ollama, vLLM) via a pluggable generator/provider
 
 ## How Scoring Works
 
@@ -58,6 +58,33 @@ func main() {
     fmt.Printf("Score: %.2f, choice=%v\n", result.Score, result.Metadata["choice"])
 }
 ```
+
+## Providers
+
+### OpenAI-compatible (OpenAI, OpenRouter, Ollama, vLLM, LM Studio)
+
+**Package:** `github.com/datar-psa/goeval/openai` (standard library only)
+
+`openai.NewGenerator` implements `LLMGenerator` on Chat Completions with a strict `json_schema` response format, and `openai.NewEmbedder` implements `Embedder` on `/embeddings` (vectors are normalized). The base URL defaults to `https://api.openai.com/v1`.
+
+```go
+gen := openai.NewGenerator("openai/gpt-4o-mini",
+    openai.WithBaseURL("https://openrouter.ai/api/v1"),
+    openai.WithAPIKey(os.Getenv("OPENROUTER_API_KEY")),
+    openai.WithHeader("X-Title", "my-evals"),
+    openai.WithTimeout(30*time.Second),
+    // openai.WithHTTPClient(client), openai.WithExtraBody(map[string]any{...})
+)
+judge := goeval.NewLLMJudge(goeval.WithLLMGenerator(gen))
+res := judge.Factuality(goeval.FactualityOptions{}).Score(ctx, goeval.ScoreInputs{
+    Input: "Capital of France?", Output: "Paris", Expected: "Paris",
+})
+```
+
+Notes:
+- Strict mode needs a schema with `additionalProperties: false` and every property listed in `required`; the built-in judges' schemas may need that for OpenAI proper.
+- A non-2xx reply returns `*openai.APIError` (status and trimmed body) wrapped in `ErrLLMGenerationFailed`. The API key is never put in errors; if a server echoes it in a body it is replaced with `[REDACTED]`.
+- `WithExtraBody` merges provider extensions such as OpenRouter's `{"provider": {"require_parameters": true}}`.
 
 ## Scorers
 
@@ -222,4 +249,3 @@ Currently we're using [hypert](https://github.com/areknoster/hypert) to cache LL
 
 - **More Scorers**: Additional evaluation methods
 - **Request Caching**: Built-in caching layer for LLM requests (currently one option is hypert)
-- **OpenAI Provider**: Native support for OpenAI's GPT models alongside Google Gemini
