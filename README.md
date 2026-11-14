@@ -273,6 +273,14 @@ The library is designed with flexibility and composability in mind:
 
 - **Pluggable Providers**: The scoring interfaces are designed to be implemented by any provider, making it easy to add support for new LLM providers or evaluation services.
 
+## Changelog
+
+### v0.2.0
+- `openai`: an OpenAI-compatible provider (`Generator` for structured output, `Embedder`) for OpenAI, OpenRouter, Ollama, vLLM and LM Studio, on `net/http` only, with the API key removed from every error.
+- `api.ToolCall` and `ScoreInputs.ToolCalls` / `ExpectedToolCalls`: an optional trace of the tool calls a model made. Additive; v0.1.0 callers are unaffected.
+- `heuristic.ToolCalls`: a code-only tool-call scorer (required, forbidden, no calls, max calls, order, argument matching).
+- `go.sum` gained the entries `go build` needs. hypert stays at v0.51.0, so a consumer on an older hypert moves up to it.
+
 ## Development
 
 ### Running Tests
